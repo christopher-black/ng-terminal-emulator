@@ -58,6 +58,12 @@
 			return result;
 		};
 
+		me.rootDirectory = function(path) {
+			var parts = path.split(config.directorySeparator);
+			while (parts.length) { parts.pop(); }
+			return config.directorySeparator;
+		}
+
 		me.directoryUp = function (path) {
 			if (path == config.directorySeparator)
 				return path;
@@ -147,8 +153,10 @@
 
 		me.path = function (path) {
 
-			if (path == "..") {
+			if (path === "..") {
 				_currentPath = pathTools.directoryUp(_currentPath);
+			} else if (path === "~") {
+				_currentPath = pathTools.rootDirectory(_currentPath);
 			}
 			else if (path && !pathTools.isDirNameValid(path))
 			    throw new Error("The directory name is not valid");
@@ -198,8 +206,14 @@
 			return exists;
 		};
 
-		me.createDir = function (path) {
+		me.isRoot = function() {
+				return _currentPath === config.directorySeparator;
+		}
 
+		me.createDir = function (path) {
+			if(_currentPath != config.directorySeparator) {
+				throw new Error("This tutorial doesn't support nested folders at this time.");
+			}
 		    if (!pathTools.isDirNameValid(path))
 		        throw new Error("The directory name is not valid");
 
@@ -324,6 +338,59 @@
     };
     commandBrokerProvider.appendCommandHandler(cdCommand());
 
+		var gitCommand = function () {
+				var me = {};
+				var fs = null;
+				me.command = 'git';
+				me.description = ['Version control.'];//, "Syntax: cd <path>", "Example: cd myDirectory", "Example: cd .."];
+				me.init = ['fileSystem', function (fileSystem) {
+						fs = fileSystem;
+				}];
+				me.handle = function (session, path) {
+						//if (!path)
+						//		throw new Error("A directory name is required");
+						//session.commands.push({ command: 'change-prompt', prompt: { path: fs.path(path) } });
+						var a = Array.prototype.slice.call(arguments, 1);
+	          var input = a.join(' ');
+	          if (input === '') {
+	            session.output.push({ output: true, text: ['These are common Git commands used in various situations:'], breakLine: true });
+	            session.output.push({ output: true, text: ['start a working area'], breakLine: false });
+	            session.output.push({ output: true, text: ['    clone    Clone existing repository into a new folder'], breakLine: false });
+	            session.output.push({ output: true, text: ['    init     Create an empty Git repository in your wd'], breakLine: true });
+
+	            session.output.push({ output: true, text: ['work on the current change'], breakLine: false });
+	            session.output.push({ output: true, text: ['    add      Add new files to be committed'], breakLine: false });
+	            session.output.push({ output: true, text: ['    commit   Record changes to the local repository'], breakLine: true });
+
+							session.output.push({ output: true, text: ['examine the history and state'], breakLine: false });
+	            session.output.push({ output: true, text: ['    status   Show the working tree status'], breakLine: true });
+
+							session.output.push({ output: true, text: ['collaborate'], breakLine: false });
+	            session.output.push({ output: true, text: ['    push     Send changes to remote repository (e.g. GitHub)'], breakLine: true });
+						} else if(input === 'init') {
+							if(fs.isRoot()) {
+								session.output.push({ output: true, text: ['WARNING: You attempted to initialize your entire home directory as a git repo. You should ALWAYS cd into your project folder before running git init.'], breakLine: true });
+							} else {
+								session.output.push({ output: true, text: ['Initialized empty Git repository in ' + fs.path()], breakLine: false });
+							}
+	          } else if(input === 'status') {
+	            session.output.push({ output: true, text: ['On branch master'], breakLine: true });
+	            session.output.push({ output: true, text: ['nothing to commit (create files and use "git add")'], breakLine: false });
+	          } else if(input.indexOf('clone') === 0) {
+							if ( input.substring(input.length - 4, input.length) !== '.git') {
+								session.output.push({ output: true, text: ['Not a Git repository! Try again.'], breakLine: false });
+							} else {
+								session.output.push({ output: true, text: ['Cloned repo ' + input.substring(input.lastIndexOf('/') + 1, input.length - 4)], breakLine: false });
+								fs.createDir(input.substring(input.lastIndexOf('/') + 1, input.length - 4));
+							}
+	          } else {
+	            session.output.push({ output: true, text: ['Unknown command ' + a.join(' ')], breakLine: true });
+	          }
+				}
+				return me;
+		};
+		commandBrokerProvider.appendCommandHandler(gitCommand());
+
     var mkdirCommand = function () {
         var me = {};
         var fs = null;
@@ -371,7 +438,7 @@
         me.handle = function (session) {
             var l = fs.list();
             var output = [];
-            
+
             for (var i = 0; i < l.directories.length; i++) {
                 output.push("[DIR]\t\t" + l.directories[i]);
             }
