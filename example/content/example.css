@@ -74,7 +74,9 @@ body {
 }
 
 .terminal{
-    border:1px solid transparent;
+  border:none;
+  margin-top: -6px;
+    /*border:1px solid transparent;*/
 }
 .vintage-terminal.terminal {
     border:none;
