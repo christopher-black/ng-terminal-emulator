@@ -2,7 +2,7 @@
 
     beforeEach(module('ng-terminal-example.command.implementations','ng-terminal-example.command.filesystem',  function ($provide) {
         $provide.value('storage', window.sessionStorage);
-        $provide.value('$ga', function () { } );
+        //$provide.value('$ga', function () { } );
     }));
 
     var pathTools = null;
@@ -84,7 +84,7 @@
             expect(pathTools.isDirectoryOfPath("\\path1\\path2", "\\path1\\path2\\path3\\file")).toEqual(false);
             expect(pathTools.isDirectoryOfPath("\\path1\\path2", "\\path1\\path2\\path3\\_dir")).toEqual(true);
         });
-        
+
         it('Can get path item names', function () {
             expect(pathTools.getPathItemName("\\")).toEqual("\\");
             expect(pathTools.getPathItemName("\\file")).toEqual("file");
@@ -102,7 +102,7 @@
             expect(pathTools.isFileNameValid("jklsdfjls\\")).toEqual(false);
             expect(pathTools.isFileNameValid("jklsdfjls.txt")).toEqual(true);
         });
-        
+
         it('Can validate directory names', function () {
             expect(pathTools.isDirNameValid("\\jklsdfjls")).toEqual(false);
             expect(pathTools.isDirNameValid("jklsdfjls")).toEqual(true);
@@ -282,7 +282,7 @@
                 fs.writeFile("file.txt", "test");
                 fs.path("..");
                 fs.path("..");
-                
+
                 broker.execute(session, "rmdir myDir2");
 
                 var counter = 0;
