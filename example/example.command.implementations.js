@@ -10,14 +10,14 @@
         }
     });
 
-    // commandBrokerProvider.appendCommandHandler({
-    //     command: 'echo',
-    //     description: ['Echoes input.'],
-    //     handle: function (session) {
-    //         var a = Array.prototype.slice.call(arguments, 1);
-    //         session.output.push({ output: true, text: [a.join(' ')], breakLine: true });
-    //     }
-    // });
+    commandBrokerProvider.appendCommandHandler({
+        command: 'echo',
+        description: ['Echoes input. Use >> to append to a file.', "Syntax: echo <somecontent> >> <fileName>", 'Example: echo "Hello World" >> file.txt'],
+        handle: function (session) {
+            var a = Array.prototype.slice.call(arguments, 1);
+            session.output.push({ output: true, text: [a.join(' ')], breakLine: true });
+        }
+    });
 
     // commandBrokerProvider.appendCommandHandler({
     //     command: 'eval',

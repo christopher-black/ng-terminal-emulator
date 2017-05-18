@@ -14,6 +14,7 @@
 })
 
 .service('storage', [function () {
+	window.localStorage.clear();
 	return window.localStorage;
 }])
 
@@ -143,7 +144,7 @@
 	return pathTools();
 }])
 
-.service('fileSystem', ['fileSystemConfiguration', 'pathTools', 'storage', function (config, pathTools, storage) {
+.service('fileSystem', ['fileSystemConfiguration', 'pathTools', 'storage', 'ObjectiveService', function (config, pathTools, storage, ObjectiveService) {
 	var fs = function () {
 		var me = {};
 		var _currentPath = config.directorySeparator;
@@ -161,7 +162,6 @@
 			else if (path && !pathTools.isDirNameValid(path))
 			    throw new Error("The directory name is not valid");
 			else if (path) {
-
 				var dirkey = pathTools.combine(_currentPath, path, "_dir");
 				if (!storage.getItem(dirkey))
 					throw new Error("The directory '" + path + "' does not exist.");
@@ -171,6 +171,16 @@
 
 			return _currentPath;
 		};
+
+		me.fileList = function() {
+			var result = [];
+			for (var key in storage) {
+				if (pathTools.isFileOfPath(_currentPath, key)) {
+					result.push(pathTools.getPathItemName(key));
+				}
+			}
+			return result;
+		}
 
 		me.list = function () {
 			var result = {
@@ -193,6 +203,10 @@
 			result.files.sort();
 			return result;
 		};
+
+		me.clear = function() {
+			storage.clear();
+		}
 
 		me.existsDir = function (path, failIfNotExist) {
 
@@ -222,6 +236,7 @@
 			if (me.existsDir(path))
 				throw new Error("The directory already exists.");
 			else {
+				ObjectiveService.completeObjective(1);
 				var dirkey = pathTools.combine(_currentPath, path, "_dir");
 				storage.setItem(dirkey,"_dir");
 			}
@@ -262,6 +277,7 @@
 			if (!content)
 				throw new Error("No content has been passed");
 
+			ObjectiveService.completeObjective(3);
 			var filekey = pathTools.combine(_currentPath, name);
 			storage.setItem(filekey, content);
 		};
@@ -272,6 +288,7 @@
 			if (!content)
 				throw new Error("No content has been passed");
 
+			ObjectiveService.completeObjective(3);
 			var filekey = pathTools.combine(_currentPath, name);
 			var prevcontent = storage.getItem(filekey);
 			storage.setItem(filekey, (prevcontent?prevcontent + "\n":"") + content);
@@ -302,6 +319,100 @@
 		return me;
 	};
 	return fs();
+}])
+
+.service('grit', ['$filter', 'fileSystemConfiguration', 'pathTools', 'fileSystem', 'ObjectiveService', function ($filter, config, pathTools, fileSystem, ObjectiveService) {
+	var grit = function () {
+		var me = {};
+		var _currentPath = config.directorySeparator;
+		var _repo = new Git();
+
+		function Git() {
+			this.tracking = [];
+			this.added = [];
+			this.dirty = [];
+			this.lastCommitId = -1;
+			this.HEAD = null; // Reference to last Commit.
+		}
+
+		function Commit(id, parent, message) {
+			this.id = id;
+			this.author = 'Student';
+			this.date = $filter('date')(new Date(), 'yyyy-MM-dd HH:mm:ss');
+			this.parent = parent;
+			this.message = message;
+		}
+
+		me.init = function () {
+			// TODO: Support multiple repos
+			ObjectiveService.completeObjective(2);
+			return _currentPath;
+		};
+
+		me.makeDirty = function(path) {
+			if(_repo.dirty.indexOf(path) < 0 && _repo.tracking.indexOf(path) >= 0) {
+				_repo.dirty.push(path);
+			}
+		};
+
+		me.add = function(paths) {
+			for(var i = 0; i < paths.length; i++) {
+				if(_repo.tracking.indexOf(paths[i]) < 0) {
+					if(_repo.added.indexOf(paths[i]) < 0) {
+						_repo.added.push(paths[i]);
+					}
+				}
+			}
+		};
+
+		me.commit = function(message) {
+			var commit = new Commit(++_repo.lastCommitId, _repo.HEAD, message);
+			// Update HEAD and current branch.
+			for(var i = 0; i < _repo.added.length; i++) {
+				if(_repo.tracking.indexOf(_repo.added[i]) < 0) {
+					_repo.tracking.push(_repo.added[i]);
+				}
+
+			}
+			if(ObjectiveService.objectives.four == true) {
+				throw new Error("Commit failed! You attempted to commit without checking your status.");
+			}
+			ObjectiveService.completeObjective(5);
+			_repo.added.length = 0;
+			_repo.dirty.length = 0;
+			_repo.HEAD = commit;
+			return commit;
+		};
+
+		me.log = function () {
+			// Start from HEAD
+			var commit = _repo.HEAD,
+					history = [];
+
+			while (commit) {
+				history.push(commit);
+				// Keep following the parent
+				commit = commit.parent;
+			}
+			ObjectiveService.completeObjective(6);
+			return history;
+		};
+
+		me.status = function() {
+			ObjectiveService.completeObjective(4);
+		}
+
+		me.added = function() {
+			return _repo.added;
+		};
+
+		me.dirty = function() {
+			return _repo.dirty;
+		};
+
+		return me;
+	};
+	return grit();
 }])
 
 .config(['commandBrokerProvider', function (commandBrokerProvider) {
@@ -341,10 +452,12 @@
 		var gitCommand = function () {
 				var me = {};
 				var fs = null;
+				var _git = null;
 				me.command = 'git';
-				me.description = ['Version control.'];//, "Syntax: cd <path>", "Example: cd myDirectory", "Example: cd .."];
-				me.init = ['fileSystem', function (fileSystem) {
+				me.description = ['Used for version control. Type git and hit enter for a list of commands specific to git.'];//, "Syntax: cd <path>", "Example: cd myDirectory", "Example: cd .."];
+				me.init = ['fileSystem', 'grit', function (fileSystem, grit) {
 						fs = fileSystem;
+						_git = grit;
 				}];
 				me.handle = function (session, path) {
 						//if (!path)
@@ -363,7 +476,8 @@
 	            session.output.push({ output: true, text: ['    commit   Record changes to the local repository'], breakLine: true });
 
 							session.output.push({ output: true, text: ['examine the history and state'], breakLine: false });
-	            session.output.push({ output: true, text: ['    status   Show the working tree status'], breakLine: true });
+							session.output.push({ output: true, text: ['    log      Show commit logs'], breakLine: false });
+							session.output.push({ output: true, text: ['    status   Show the working tree status'], breakLine: true });
 
 							session.output.push({ output: true, text: ['collaborate'], breakLine: false });
 	            session.output.push({ output: true, text: ['    push     Send changes to remote repository (e.g. GitHub)'], breakLine: true });
@@ -372,10 +486,30 @@
 								session.output.push({ output: true, text: ['WARNING: You attempted to initialize your entire home directory as a git repo. You should ALWAYS cd into your project folder before running git init.'], breakLine: true });
 							} else {
 								session.output.push({ output: true, text: ['Initialized empty Git repository in ' + fs.path()], breakLine: false });
+								_git.init();
+								//fs.writeFile('.git', 'init');
 							}
 	          } else if(input === 'status') {
 	            session.output.push({ output: true, text: ['On branch master'], breakLine: true });
-	            session.output.push({ output: true, text: ['nothing to commit (create files and use "git add")'], breakLine: false });
+
+							var changes = false;
+							var files = _git.added();
+							for(var i = 0; i < files.length; i++) {
+								changes = true;
+								session.output.push({ output: true, text: ['    added: ' + files[i] + ''], breakLine: false });
+							}
+
+							var dirtyfiles = _git.dirty();
+							for(var i = 0; i < dirtyfiles.length; i++) {
+								changes = true;
+								session.output.push({ output: true, text: ['    modified: ' + dirtyfiles[i] + ''], breakLine: false });
+							}
+
+							if(!changes) {
+								session.output.push({ output: true, text: ['nothing to commit (create files and use "git add")'], breakLine: false });
+							} else {
+								_git.status();
+							}
 	          } else if(input.indexOf('clone') === 0) {
 							if ( input.substring(input.length - 4, input.length) !== '.git') {
 								session.output.push({ output: true, text: ['Not a Git repository! Try again.'], breakLine: false });
@@ -383,7 +517,27 @@
 								session.output.push({ output: true, text: ['Cloned repo ' + input.substring(input.lastIndexOf('/') + 1, input.length - 4)], breakLine: false });
 								fs.createDir(input.substring(input.lastIndexOf('/') + 1, input.length - 4));
 							}
-	          } else {
+	          } else if(input.indexOf('commit') === 0) {
+						 	if (_git.added().length == 0 && _git.dirty().length == 0){
+								session.output.push({ output: true, text: ['nothing to commit (create files and use "git add")'], breakLine: false });
+							}	else if ( input.indexOf('-m') >= 0) {
+								_git.commit(input.substring(input.indexOf('-m') + 3, input.length));
+						 		session.output.push({ output: true, text: ['Commmit with message: ' + input.substring(input.indexOf('-m') + 3, input.length)], breakLine: false });
+						 	} else {
+						 		session.output.push({ output: true, text: ['Commits must include a message!'], breakLine: false });
+						 	}
+						} else if(input === 'log') {
+							var logs = _git.log();
+							for(var i = 0; i < logs.length; i++) {
+								session.output.push({ output: true, text: ['Author: ' + logs[i].author], breakLine: false });
+								session.output.push({ output: true, text: ['Date: ' + logs[i].date], breakLine: true });
+								session.output.push({ output: true, text: ['    ' + logs[i].message], breakLine: true });
+							}
+
+	          } else if(input === 'add .') {
+							var logs = _git.add(fs.fileList());
+
+	          }  else {
 	            session.output.push({ output: true, text: ['Unknown command ' + a.join(' ')], breakLine: true });
 	          }
 				}
@@ -521,9 +675,11 @@
     var appendFileRedirection = function () {
         var me = {};
         var fs = null;
+				var git = null;
         me.command = '>>';
-        me.init = ['fileSystem', function (fileSystem) {
+        me.init = ['fileSystem', 'grit', function (fileSystem, grit) {
             fs = fileSystem;
+						git = grit;
         }];
         me.handle = function (session, path) {
             if (!path)
@@ -538,6 +694,7 @@
                             content += '\n';
                     }
                 }
+								git.makeDirty(path);
                 fs.appendToFile(path, content);
             }
         }

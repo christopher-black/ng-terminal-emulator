@@ -10,13 +10,31 @@ body {
     padding: 0px;
     margin: 0px;
 }
+
+.objectives {
+  float: left;
+  width: 220px;
+  font-size: 16px;
+  font-family: monospace;
+  color: #eee;
+}
+
+.objectives li {
+  padding-bottom: 10px;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: #ccc;
+}
+
 .console-section {
     margin:0px;
     padding:10px;
 }
 
 .container {
-    width: 720px;
+    width: 920px;
     margin: 0px auto;
     color: #FFF;
 }
