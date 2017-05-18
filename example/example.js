@@ -29,9 +29,10 @@
 //
 //     return provider();
 // })
-.controller('console',['$scope','commandBroker','$rootScope', function ($scope, commandBroker, $rootScope) {
+.controller('console',['$scope','commandBroker','$rootScope', 'ObjectiveService', function ($scope, commandBroker, $rootScope, ObjectiveService) {
 
     $rootScope.theme = 'vintage';
+    $scope.objective = ObjectiveService.objectives;
 
     setTimeout(function () {
         $scope.$broadcast('terminal-output', {
@@ -97,6 +98,36 @@
     });
 }])
 
+.factory('ObjectiveService', [function(){
+  var objectives = {one: true, two: true, three: true, four: true, five: true, six: true, nine: true};
+  var count = 0;
+  var completeObjective = function(num) {
+    if (num == 1) {
+      objectives.one = false;
+      count++;
+    } else if (count + 1 == num && num == 2) {
+      objectives.two = false;
+      count++;
+    } else if (count + 1 == num && num == 3) {
+      objectives.three = false;
+      count++;
+    } else if (count + 1 == num && num == 4) {
+      objectives.four = false;
+      count++;
+    } else if (count + 1 == num && num == 5) {
+      objectives.five = false;
+      count++;
+    } else if (count + 1 == num && num == 6) {
+      objectives.six = false;
+      count++;
+    }
+  }
+  return {
+    objectives: objectives,
+    completeObjective: completeObjective
+  }
+}])
+
 // .config(['$gaProvider',function ($gaProvider) {
 //     $gaProvider.ga('create', 'UA-53263543-1', 'auto');
 // }])
@@ -107,6 +138,4 @@
     terminalConfigurationProvider.config('vintage').allowTypingWriteDisplaying = false;
     //terminalConfigurationProvider.config('vintage').typeSoundUrl ='example/content/type.wav';
     //terminalConfigurationProvider.config('vintage').startSoundUrl ='example/content/start.wav';
-}])
-
-;
+}]);

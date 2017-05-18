@@ -13,6 +13,16 @@
         <section class="console-section">
             <section class="container">
                 <div ng-controller="console">
+                    <div class="objectives">
+                    <ol>
+                      <li data-ng-class="objective.one && 'null' || 'strikethrough'">Create a project folder</li>
+                      <li data-ng-class="objective.two && 'null' || 'strikethrough'">Initialize a git repo in your project</li>
+                      <li data-ng-class="objective.three && 'null' || 'strikethrough'">Create a file (help echo)</li>
+                      <li data-ng-class="objective.five && 'null' || 'strikethrough'">Commit your new file</li>
+                      <li data-ng-class="objective.six && 'null' || 'strikethrough'">Display your commit log</li>
+                      <li data-ng-class="objective.nine && 'null' || 'strikethrough'">Try modifying, adding and committing more files.</li>
+                    </ol>
+                  </div>
                     <terminal>
                         <p class="click-me">Click inside the window to start!</p>
                     </terminal>
